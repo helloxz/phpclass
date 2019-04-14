@@ -3,7 +3,7 @@
 	name:PHP文件缓存类
 	author:xiaoz.me
 	QQ:337003006
-	update:2018-09-06
+	update:2019-04-14
 	*/
 	//设置缓存路径
 	define('CPATH', './caches');
@@ -23,9 +23,18 @@
 			@(int)$fileTime = date("YmdHi",$fileTime);
 			//获取当前时间
 			(int)$theTime = date("YmdHi",time());
+			//到期时间
+			(int)$endTime = $theTime + $cacheTime;
 			//计算时间差
 			$timeDiff = $theTime - $fileTime;
-
+			//重组缓存内容
+			$tmpdata = array(
+				"key"	=>	$key,
+				"ctime"	=>	(int)$theTime,
+				"etime"	=>	(int)$endTime,
+				"data"	=>	$content
+			);
+			$content = json_encode($tmpdata);
 			//缓存过期了，重新生成
 			if((!file_exists($fullpath)) || ($timeDiff > $cacheTime)){
 				$myfile = fopen($fullpath,"w") or die("Unable to open file!");
@@ -71,11 +80,26 @@
 		}
 		//读取缓存
 		function get($key){
-			$myfile = fopen($fullpath,"r") or die("Unable to open file!");
+			//完整的缓存路径
+			$fullpath = CPATH.'/'.$key;
+			if(!is_file($fullpath)){
+				return FALSE;
+				exit;
+			}
+			//获取当前时间
+			(int)$theTime = date("YmdHi",time());
+			@$myfile = fopen($fullpath,"r") or die("Unable to open file!");
 			@$cacheContent = fread($myfile,filesize($fullpath));
 			fclose($myfile);
-
-			return $cacheContent;
+			$tmpdata = json_decode($cacheContent);
+			//如果缓存过期
+			if(($theTime > $tmpdata->etime)){
+				return FALSE;
+				exit;
+			}
+			else{
+				return $tmpdata->data;
+			}
 		}
 	}
 ?>
